@@ -28,10 +28,12 @@
     <string name="menu_logout_label">Logout</string>
     <string name="error_external_storage">There was a problem accessing the external storage</string>
     <string name="general_camera_error">Sorry there was an error!</string>
+    <string name="file_loading_problem">There was a problem with the selected file</string>
     <string-array name="camera_choices">
         <item>Take Picture</item>
         <item>Take Video</item>
         <item>Choose Picture</item>
         <item>Choose Video</item>
     </string-array>
+    <string name="title_activity_recipients">Choose Recipients</string>
 </resources>

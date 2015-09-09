@@ -22,6 +22,9 @@ import com.parse.ParseAnalytics;
 import com.parse.ParseUser;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -38,6 +41,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     public static final int MEDIA_TYPE_IMAGE = 4;
     public static final int MEDIA_TYPE_VIDEO = 5;
+
+    public static final int FILE_SIZE_LIMIT = 1024*1024*10; //10mb
 
     protected Uri mMediaUri; //path to file in android system
 
@@ -56,6 +61,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                         takePhotoIntent.putExtra(MediaStore.EXTRA_OUTPUT, mMediaUri);
                         startActivityForResult(takePhotoIntent, TAKE_PHOTO_REQUEST);
                     }
+                    break;
                 case 1://take video
                     Intent videoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
                     mMediaUri = getOutputMediaFileUri(MEDIA_TYPE_VIDEO);
@@ -69,11 +75,17 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
                         startActivityForResult(videoIntent, TAKE_VIDEO_REQUEST);
                     }
-
+                    break;
                 case 2: //Choose picture
+                    Intent choosePhotoIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                    choosePhotoIntent.setType("image/*");
+                    startActivityForResult(choosePhotoIntent, PICK_PHOTO_REQUEST);
                     break;
                 case 3: //choose video
-                    break;
+                    Intent chooseVideoIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                    chooseVideoIntent.setType("video/*");
+                    Toast.makeText(MainActivity.this, "selected video must be less than 10MB", Toast.LENGTH_LONG).show();
+                    startActivityForResult(chooseVideoIntent, PICK_VIDEO_REQUEST);
             }
         }
 
@@ -120,10 +132,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
         private boolean isExternalStorageAvailable() {
             String state = Environment.getExternalStorageState();
-            if (state.equals(Environment.MEDIA_MOUNTED)) {
-                return true;
-            }
-            return false;
+            return state.equals(Environment.MEDIA_MOUNTED);
 
         }
     };
@@ -201,12 +210,66 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
         if (resultCode == RESULT_OK) {
             //successful - add gallery - tell gallery file is available
-            Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-            mediaScanIntent.setData(mMediaUri);
-            sendBroadcast(mediaScanIntent);
+
+            if (requestCode == PICK_PHOTO_REQUEST || requestCode == PICK_VIDEO_REQUEST) {
+                if (data == null) {
+                    Toast.makeText(this, getString(R.string.general_camera_error), Toast.LENGTH_LONG).show();
+                } else {
+                    mMediaUri = data.getData();
+                }
+
+                if (requestCode == PICK_VIDEO_REQUEST) {
+                    int fileSize = 0;
+                    InputStream inputStream = null;
+                    try {
+                        inputStream = getContentResolver().openInputStream(mMediaUri);
+                        fileSize = inputStream.available();
+                    }
+                    catch (FileNotFoundException e) {
+                        Toast.makeText(this, getString(R.string.file_loading_problem), Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    catch (IOException e) {
+                        Toast.makeText(this, getString(R.string.file_loading_problem), Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    finally {
+                        try {
+                            assert inputStream != null;
+                            inputStream.close();
+                        } catch (IOException e) {
+                            Log.e(TAG,e.getMessage());
+
+                        }
+                    }
+
+                    if (fileSize >= FILE_SIZE_LIMIT) {
+                        Toast.makeText(this, "selected file is too large", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    }
+            } else {
+                Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                mediaScanIntent.setData(mMediaUri);
+                sendBroadcast(mediaScanIntent);
+            }
+
+            Intent recipientsIntent = new Intent(this, RecipientsActivity.class);
+            recipientsIntent.setData(mMediaUri);
+
+            String fileType;
+            if (requestCode == PICK_PHOTO_REQUEST || requestCode == TAKE_PHOTO_REQUEST) {
+                fileType = ParseConstants.TYPE_IMAGE;
+            } else {
+                fileType = ParseConstants.TYPE_VIDEO;
+            }
+
+            recipientsIntent.putExtra(ParseConstants.KEY_FILE_TYPE, fileType);
+            startActivity(recipientsIntent);
 
         } else if (resultCode != RESULT_CANCELED) {
-            Toast.makeText(MainActivity.this, R.string.general_camera_error, Toast.LENGTH_LONG );
+            Toast.makeText(MainActivity.this, R.string.general_camera_error, Toast.LENGTH_LONG ).show();
             //change
         }
     }

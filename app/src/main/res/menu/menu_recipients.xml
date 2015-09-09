@@ -1,0 +1,10 @@
+<menu xmlns:tools="http://schemas.android.com/tools"
+      xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_send"
+          android:title="Send"
+          android:orderInCategory="100"
+          android:showAsAction="always"
+        android:visible="false"
+          tools:ignore="AppCompatResource"
+        android:icon="@mipmap/ic_action_send_now"/>
+</menu>
